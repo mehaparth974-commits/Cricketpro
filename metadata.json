@@ -1,0 +1,6 @@
+{
+  "name": "CricketPro",
+  "description": "Every Ball. Every Run. Every Record. — Professional live cricket scoring, advanced match analytics, tournament management, streaming, and community platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

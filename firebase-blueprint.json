@@ -1,0 +1,379 @@
+{
+  "entities": {
+    "PlayerProfile": {
+      "title": "PlayerProfile",
+      "description": "Public cricket player profile and career statistics (no PII).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the player." },
+        "displayName": { "type": "string", "description": "Player display name." },
+        "handle": { "type": "string", "description": "Unique or short player handle." },
+        "photoData": { "type": "string", "description": "Optional compressed avatar data URI or URL." },
+        "battingStyle": { "type": "string", "description": "Batting hand preference." },
+        "bowlingStyle": { "type": "string", "description": "Bowling arm and style." },
+        "playingRole": { "type": "string", "description": "Primary cricket role." },
+        "city": { "type": "string", "description": "Home city or club location." },
+        "bio": { "type": "string", "description": "Short player biography." },
+        "privateStats": { "type": "boolean", "description": "Whether profile stats are hidden from public discovery." },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "Access role (user by default)." },
+        "followersCount": { "type": "integer", "description": "Cached follower count." },
+        "matchesPlayed": { "type": "integer" },
+        "runsScored": { "type": "integer" },
+        "ballsFaced": { "type": "integer" },
+        "highestScore": { "type": "integer" },
+        "fifties": { "type": "integer" },
+        "hundreds": { "type": "integer" },
+        "fours": { "type": "integer" },
+        "sixes": { "type": "integer" },
+        "wicketsTaken": { "type": "integer" },
+        "runsConceded": { "type": "integer" },
+        "ballsBowled": { "type": "integer" },
+        "bestBowlingWickets": { "type": "integer" },
+        "bestBowlingRuns": { "type": "integer" },
+        "catches": { "type": "integer" },
+        "stumpings": { "type": "integer" },
+        "runOuts": { "type": "integer" },
+        "mvpPoints": { "type": "number" },
+        "badges": { "type": "array", "description": "Earned achievement badge identifiers." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on create." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["userId", "displayName", "handle", "battingStyle", "bowlingStyle", "playingRole", "privateStats", "role", "createdAt", "updatedAt"]
+    },
+    "PrivateAccount": {
+      "title": "PrivateAccount",
+      "description": "Owner-only PII and personal contact preferences.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "notificationsEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "notificationsEnabled", "createdAt", "updatedAt"]
+    },
+    "Team": {
+      "title": "Team",
+      "description": "Cricket squad with roster, captain, and custom branding.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "shortName": { "type": "string" },
+        "city": { "type": "string" },
+        "logoData": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "captainName": { "type": "string" },
+        "playerNames": { "type": "array" },
+        "wins": { "type": "integer" },
+        "losses": { "type": "integer" },
+        "ties": { "type": "integer" },
+        "publicVisible": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "shortName", "ownerUid", "captainName", "playerNames", "publicVisible", "createdAt", "updatedAt"]
+    },
+    "Tournament": {
+      "title": "Tournament",
+      "description": "Cricket tournament with format, rules, teams, and status.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "format": { "type": "string", "enum": ["ROUND_ROBIN", "KNOCKOUT", "LEAGUE", "GROUP_STAGE"] },
+        "oversPerMatch": { "type": "integer" },
+        "powerplayOvers": { "type": "integer" },
+        "organizerUid": { "type": "string" },
+        "organizerName": { "type": "string" },
+        "teamIds": { "type": "array" },
+        "teamNames": { "type": "array" },
+        "rulesText": { "type": "string" },
+        "bannerTheme": { "type": "string" },
+        "status": { "type": "string", "enum": ["UPCOMING", "ONGOING", "COMPLETED"] },
+        "winnerTeamName": { "type": "string" },
+        "publicVisible": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "format", "oversPerMatch", "powerplayOvers", "organizerUid", "organizerName", "teamIds", "teamNames", "status", "publicVisible", "createdAt", "updatedAt"]
+    },
+    "TournamentStanding": {
+      "title": "TournamentStanding",
+      "description": "Team points table row with Net Run Rate metrics.",
+      "type": "object",
+      "properties": {
+        "tournamentId": { "type": "string" },
+        "teamId": { "type": "string" },
+        "teamName": { "type": "string" },
+        "groupName": { "type": "string" },
+        "organizerUid": { "type": "string" },
+        "played": { "type": "integer" },
+        "won": { "type": "integer" },
+        "lost": { "type": "integer" },
+        "tied": { "type": "integer" },
+        "noResult": { "type": "integer" },
+        "points": { "type": "integer" },
+        "runsFor": { "type": "integer" },
+        "ballsFaced": { "type": "integer" },
+        "runsAgainst": { "type": "integer" },
+        "ballsBowled": { "type": "integer" },
+        "nrr": { "type": "number" },
+        "publicVisible": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tournamentId", "teamId", "teamName", "organizerUid", "played", "won", "lost", "tied", "noResult", "points", "runsFor", "ballsFaced", "runsAgainst", "ballsBowled", "nrr", "publicVisible", "updatedAt"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Cricket match state, scoreboard summary, stream links, and AI insights.",
+      "type": "object",
+      "properties": {
+        "tournamentId": { "type": "string" },
+        "tournamentName": { "type": "string" },
+        "teamAId": { "type": "string" },
+        "teamBId": { "type": "string" },
+        "teamAName": { "type": "string" },
+        "teamBName": { "type": "string" },
+        "teamAShort": { "type": "string" },
+        "teamBShort": { "type": "string" },
+        "teamAPlayers": { "type": "array" },
+        "teamBPlayers": { "type": "array" },
+        "oversLimit": { "type": "integer" },
+        "powerplayOvers": { "type": "integer" },
+        "groundName": { "type": "string" },
+        "tossWinner": { "type": "string" },
+        "tossDecision": { "type": "string", "enum": ["BAT", "BOWL"] },
+        "battingFirstTeam": { "type": "string", "enum": ["A", "B"] },
+        "status": { "type": "string", "enum": ["UPCOMING", "LIVE", "INNINGS_BREAK", "COMPLETED"] },
+        "currentInnings": { "type": "integer" },
+        "teamARuns": { "type": "integer" },
+        "teamAWickets": { "type": "integer" },
+        "teamABalls": { "type": "integer" },
+        "teamBRuns": { "type": "integer" },
+        "teamBWickets": { "type": "integer" },
+        "teamBBalls": { "type": "integer" },
+        "targetRuns": { "type": "integer" },
+        "resultText": { "type": "string" },
+        "mvpPlayerName": { "type": "string" },
+        "streamUrl": { "type": "string" },
+        "rtmpServer": { "type": "string" },
+        "rtmpKey": { "type": "string" },
+        "aiSummary": { "type": "string" },
+        "scorerUid": { "type": "string" },
+        "publicVisible": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teamAId", "teamBId", "teamAName", "teamBName", "teamAShort", "teamBShort", "teamAPlayers", "teamBPlayers", "oversLimit", "powerplayOvers", "groundName", "tossWinner", "tossDecision", "battingFirstTeam", "status", "currentInnings", "teamARuns", "teamAWickets", "teamABalls", "teamBRuns", "teamBWickets", "teamBBalls", "targetRuns", "resultText", "scorerUid", "publicVisible", "createdAt", "updatedAt"]
+    },
+    "BallEvent": {
+      "title": "BallEvent",
+      "description": "Ordered ball-by-ball delivery event inside a match.",
+      "type": "object",
+      "properties": {
+        "matchId": { "type": "string" },
+        "scorerUid": { "type": "string" },
+        "publicVisible": { "type": "boolean" },
+        "sequenceIndex": { "type": "integer" },
+        "innings": { "type": "integer" },
+        "overNumber": { "type": "integer" },
+        "ballInOver": { "type": "integer" },
+        "strikerName": { "type": "string" },
+        "nonStrikerName": { "type": "string" },
+        "bowlerName": { "type": "string" },
+        "runsScored": { "type": "integer" },
+        "extraType": { "type": "string", "enum": ["NONE", "WIDE", "NO_BALL", "BYE", "LEG_BYE"] },
+        "extraRuns": { "type": "integer" },
+        "wicket": { "type": "boolean" },
+        "dismissalType": { "type": "string" },
+        "dismissedPlayerName": { "type": "string" },
+        "fielderName": { "type": "string" },
+        "shotAngleDeg": { "type": "integer" },
+        "shotDistanceNorm": { "type": "number" },
+        "powerplay": { "type": "boolean" },
+        "commentary": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["matchId", "scorerUid", "publicVisible", "sequenceIndex", "innings", "overNumber", "ballInOver", "strikerName", "nonStrikerName", "bowlerName", "runsScored", "extraType", "extraRuns", "wicket", "dismissalType", "shotAngleDeg", "shotDistanceNorm", "powerplay", "commentary", "createdAt"]
+    },
+    "CommunityPost": {
+      "title": "CommunityPost",
+      "description": "Community feed post, match share card, or cricket news update.",
+      "type": "object",
+      "properties": {
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "content": { "type": "string" },
+        "postType": { "type": "string", "enum": ["UPDATE", "MATCH_RESULT", "NEWS", "HIGHLIGHT"] },
+        "matchId": { "type": "string" },
+        "matchHeadline": { "type": "string" },
+        "likesCount": { "type": "integer" },
+        "commentsCount": { "type": "integer" },
+        "hidden": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorUid", "authorName", "content", "postType", "likesCount", "commentsCount", "hidden", "createdAt", "updatedAt"]
+    },
+    "PostLike": {
+      "title": "PostLike",
+      "description": "Per-user like marker on a community post.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "createdAt"]
+    },
+    "PostComment": {
+      "title": "PostComment",
+      "description": "Comment on a community post.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "authorUid", "authorName", "text", "createdAt"]
+    },
+    "Ground": {
+      "title": "Ground",
+      "description": "Cricket ground discovery record.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "city": { "type": "string" },
+        "pitchType": { "type": "string", "enum": ["TURF", "MATTING", "CEMENT", "ASTRO"] },
+        "floodlights": { "type": "boolean" },
+        "publicVisible": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "city", "pitchType", "floodlights", "publicVisible", "createdBy", "createdAt"]
+    },
+    "Follow": {
+      "title": "Follow",
+      "description": "Player or team follow relationship.",
+      "type": "object",
+      "properties": {
+        "followerUid": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["PLAYER", "TEAM"] },
+        "targetName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["followerUid", "targetId", "targetType", "targetName", "createdAt"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Content or match moderation report for Admin review.",
+      "type": "object",
+      "properties": {
+        "reporterUid": { "type": "string" },
+        "reporterName": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["POST", "MATCH", "PLAYER"] },
+        "targetId": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["OPEN", "RESOLVED", "DISMISSED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterUid", "reporterName", "targetType", "targetId", "reason", "status", "createdAt", "updatedAt"]
+    },
+    "AppNotification": {
+      "title": "AppNotification",
+      "description": "In-app and local push notification entry.",
+      "type": "object",
+      "properties": {
+        "recipientUid": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "type": { "type": "string", "enum": ["MATCH", "TOURNAMENT", "COMMUNITY", "SYSTEM"] },
+        "referenceId": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["recipientUid", "title", "body", "type", "read", "createdAt"]
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Global application settings managed by admins.",
+      "type": "object",
+      "properties": {
+        "maintenanceMode": { "type": "boolean" },
+        "announcementBanner": { "type": "string" },
+        "defaultOvers": { "type": "integer" },
+        "allowCommunityPosts": { "type": "boolean" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["maintenanceMode", "announcementBanner", "defaultOvers", "allowCommunityPosts", "updatedBy", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/players/{uid}": {
+      "schema": { "$ref": "#/entities/PlayerProfile" },
+      "description": "Public player profile and career cricket stats."
+    },
+    "/users/{uid}/private/account": {
+      "schema": { "$ref": "#/entities/PrivateAccount" },
+      "description": "Owner-isolated PII contact details and account settings."
+    },
+    "/teams/{teamId}": {
+      "schema": { "$ref": "#/entities/Team" },
+      "description": "Teams, captains, and squad rosters."
+    },
+    "/tournaments/{tournamentId}": {
+      "schema": { "$ref": "#/entities/Tournament" },
+      "description": "Tournaments with format, rules, and teams."
+    },
+    "/tournaments/{tournamentId}/standings/{teamId}": {
+      "schema": { "$ref": "#/entities/TournamentStanding" },
+      "description": "Tournament points table and Net Run Rate standings."
+    },
+    "/matches/{matchId}": {
+      "schema": { "$ref": "#/entities/Match" },
+      "description": "Live and completed cricket matches."
+    },
+    "/matches/{matchId}/balls/{ballId}": {
+      "schema": { "$ref": "#/entities/BallEvent" },
+      "description": "Ball-by-ball delivery ledger for a match."
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/CommunityPost" },
+      "description": "Cricket community feed posts."
+    },
+    "/posts/{postId}/likes/{uid}": {
+      "schema": { "$ref": "#/entities/PostLike" },
+      "description": "Likes on a community post."
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/PostComment" },
+      "description": "Comments on a community post."
+    },
+    "/grounds/{groundId}": {
+      "schema": { "$ref": "#/entities/Ground" },
+      "description": "Cricket grounds directory."
+    },
+    "/follows/{followId}": {
+      "schema": { "$ref": "#/entities/Follow" },
+      "description": "Follow relationships for players and teams."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/Report" },
+      "description": "Moderation reports submitted for Admin review."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/AppNotification" },
+      "description": "User-targeted and broadcast notifications."
+    },
+    "/app_config/{configId}": {
+      "schema": { "$ref": "#/entities/AppConfig" },
+      "description": "Admin-managed application configuration."
+    }
+  }
+}

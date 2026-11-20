@@ -1,0 +1,555 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() &&
+             'email_verified' in request.auth.token &&
+             request.auth.token.email_verified == true &&
+             'email' in request.auth.token &&
+             request.auth.token.email == 'anu61284@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() ||
+             (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidServerTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidBoundedList(arr, maxLen) {
+      return arr is list && arr.size() <= maxLen && (arr.size() == 0 || arr[0] is string);
+    }
+
+    // Validation helpers
+    function isValidPlayerProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60 &&
+             data.handle is string && data.handle.size() >= 2 && data.handle.size() <= 30 &&
+             (!('photoData' in data) || (data.photoData is string && data.photoData.size() <= 65000)) &&
+             data.battingStyle is string && data.battingStyle.size() <= 40 &&
+             data.bowlingStyle is string && data.bowlingStyle.size() <= 40 &&
+             data.playingRole is string && data.playingRole.size() <= 40 &&
+             (!('city' in data) || (data.city is string && data.city.size() <= 60)) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() <= 200)) &&
+             data.privateStats is bool &&
+             data.role in ['user', 'admin'] &&
+             (!('followersCount' in data) || (data.followersCount is int && data.followersCount >= 0)) &&
+             (!('matchesPlayed' in data) || (data.matchesPlayed is int && data.matchesPlayed >= 0)) &&
+             (!('runsScored' in data) || (data.runsScored is int && data.runsScored >= 0)) &&
+             (!('ballsFaced' in data) || (data.ballsFaced is int && data.ballsFaced >= 0)) &&
+             (!('highestScore' in data) || (data.highestScore is int && data.highestScore >= 0)) &&
+             (!('fifties' in data) || (data.fifties is int && data.fifties >= 0)) &&
+             (!('hundreds' in data) || (data.hundreds is int && data.hundreds >= 0)) &&
+             (!('fours' in data) || (data.fours is int && data.fours >= 0)) &&
+             (!('sixes' in data) || (data.sixes is int && data.sixes >= 0)) &&
+             (!('wicketsTaken' in data) || (data.wicketsTaken is int && data.wicketsTaken >= 0)) &&
+             (!('runsConceded' in data) || (data.runsConceded is int && data.runsConceded >= 0)) &&
+             (!('ballsBowled' in data) || (data.ballsBowled is int && data.ballsBowled >= 0)) &&
+             (!('bestBowlingWickets' in data) || (data.bestBowlingWickets is int && data.bestBowlingWickets >= 0)) &&
+             (!('bestBowlingRuns' in data) || (data.bestBowlingRuns is int && data.bestBowlingRuns >= 0)) &&
+             (!('catches' in data) || (data.catches is int && data.catches >= 0)) &&
+             (!('stumpings' in data) || (data.stumpings is int && data.stumpings >= 0)) &&
+             (!('runOuts' in data) || (data.runOuts is int && data.runOuts >= 0)) &&
+             (!('mvpPoints' in data) || data.mvpPoints is number) &&
+             (!('badges' in data) || isValidBoundedList(data.badges, 20)) &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidPrivateAccount(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 120)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
+             data.notificationsEnabled is bool &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidTeam(data) {
+      return data.name is string && data.name.size() >= 2 && data.name.size() <= 60 &&
+             data.shortName is string && data.shortName.size() >= 2 && data.shortName.size() <= 8 &&
+             (!('city' in data) || (data.city is string && data.city.size() <= 60)) &&
+             (!('logoData' in data) || (data.logoData is string && data.logoData.size() <= 65000)) &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             data.captainName is string && data.captainName.size() >= 1 && data.captainName.size() <= 60 &&
+             isValidBoundedList(data.playerNames, 25) &&
+             (!('wins' in data) || (data.wins is int && data.wins >= 0)) &&
+             (!('losses' in data) || (data.losses is int && data.losses >= 0)) &&
+             (!('ties' in data) || (data.ties is int && data.ties >= 0)) &&
+             data.publicVisible is bool &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidTournament(data) {
+      return data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+             data.format in ['ROUND_ROBIN', 'KNOCKOUT', 'LEAGUE', 'GROUP_STAGE'] &&
+             data.oversPerMatch is int && data.oversPerMatch >= 1 && data.oversPerMatch <= 50 &&
+             data.powerplayOvers is int && data.powerplayOvers >= 0 && data.powerplayOvers <= 15 &&
+             data.organizerUid is string && data.organizerUid.size() >= 1 && data.organizerUid.size() <= 128 &&
+             data.organizerName is string && data.organizerName.size() >= 1 && data.organizerName.size() <= 60 &&
+             isValidBoundedList(data.teamIds, 32) &&
+             isValidBoundedList(data.teamNames, 32) &&
+             (!('rulesText' in data) || (data.rulesText is string && data.rulesText.size() <= 1000)) &&
+             (!('bannerTheme' in data) || (data.bannerTheme is string && data.bannerTheme.size() <= 30)) &&
+             data.status in ['UPCOMING', 'ONGOING', 'COMPLETED'] &&
+             (!('winnerTeamName' in data) || (data.winnerTeamName is string && data.winnerTeamName.size() <= 60)) &&
+             data.publicVisible is bool &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidTournamentStanding(data) {
+      return data.tournamentId is string && data.tournamentId.size() <= 128 &&
+             data.teamId is string && data.teamId.size() <= 128 &&
+             data.teamName is string && data.teamName.size() >= 1 && data.teamName.size() <= 60 &&
+             (!('groupName' in data) || (data.groupName is string && data.groupName.size() <= 20)) &&
+             data.organizerUid is string && data.organizerUid.size() >= 1 && data.organizerUid.size() <= 128 &&
+             data.played is int && data.played >= 0 &&
+             data.won is int && data.won >= 0 &&
+             data.lost is int && data.lost >= 0 &&
+             data.tied is int && data.tied >= 0 &&
+             data.noResult is int && data.noResult >= 0 &&
+             data.points is int && data.points >= 0 &&
+             data.runsFor is int && data.runsFor >= 0 &&
+             data.ballsFaced is int && data.ballsFaced >= 0 &&
+             data.runsAgainst is int && data.runsAgainst >= 0 &&
+             data.ballsBowled is int && data.ballsBowled >= 0 &&
+             data.nrr is number &&
+             data.publicVisible is bool &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidMatch(data) {
+      return (!('tournamentId' in data) || (data.tournamentId is string && data.tournamentId.size() <= 128)) &&
+             (!('tournamentName' in data) || (data.tournamentName is string && data.tournamentName.size() <= 80)) &&
+             data.teamAId is string && data.teamAId.size() >= 1 && data.teamAId.size() <= 128 &&
+             data.teamBId is string && data.teamBId.size() >= 1 && data.teamBId.size() <= 128 &&
+             data.teamAName is string && data.teamAName.size() >= 1 && data.teamAName.size() <= 60 &&
+             data.teamBName is string && data.teamBName.size() >= 1 && data.teamBName.size() <= 60 &&
+             data.teamAShort is string && data.teamAShort.size() >= 1 && data.teamAShort.size() <= 8 &&
+             data.teamBShort is string && data.teamBShort.size() >= 1 && data.teamBShort.size() <= 8 &&
+             isValidBoundedList(data.teamAPlayers, 15) &&
+             isValidBoundedList(data.teamBPlayers, 15) &&
+             data.oversLimit is int && data.oversLimit >= 1 && data.oversLimit <= 50 &&
+             data.powerplayOvers is int && data.powerplayOvers >= 0 && data.powerplayOvers <= 15 &&
+             data.groundName is string && data.groundName.size() >= 1 && data.groundName.size() <= 80 &&
+             data.tossWinner is string && data.tossWinner.size() <= 60 &&
+             data.tossDecision in ['BAT', 'BOWL'] &&
+             data.battingFirstTeam in ['A', 'B'] &&
+             data.status in ['UPCOMING', 'LIVE', 'INNINGS_BREAK', 'COMPLETED'] &&
+             data.currentInnings is int && data.currentInnings >= 1 && data.currentInnings <= 2 &&
+             data.teamARuns is int && data.teamARuns >= 0 &&
+             data.teamAWickets is int && data.teamAWickets >= 0 && data.teamAWickets <= 10 &&
+             data.teamABalls is int && data.teamABalls >= 0 &&
+             data.teamBRuns is int && data.teamBRuns >= 0 &&
+             data.teamBWickets is int && data.teamBWickets >= 0 && data.teamBWickets <= 10 &&
+             data.teamBBalls is int && data.teamBBalls >= 0 &&
+             data.targetRuns is int && data.targetRuns >= 0 &&
+             data.resultText is string && data.resultText.size() <= 160 &&
+             (!('mvpPlayerName' in data) || (data.mvpPlayerName is string && data.mvpPlayerName.size() <= 60)) &&
+             (!('streamUrl' in data) || (data.streamUrl is string && data.streamUrl.size() <= 500)) &&
+             (!('rtmpServer' in data) || (data.rtmpServer is string && data.rtmpServer.size() <= 300)) &&
+             (!('rtmpKey' in data) || (data.rtmpKey is string && data.rtmpKey.size() <= 120)) &&
+             (!('aiSummary' in data) || (data.aiSummary is string && data.aiSummary.size() <= 3000)) &&
+             data.scorerUid is string && data.scorerUid.size() >= 1 && data.scorerUid.size() <= 128 &&
+             data.publicVisible is bool &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidBallEvent(data) {
+      return data.matchId is string && data.matchId.size() >= 1 && data.matchId.size() <= 128 &&
+             data.scorerUid is string && data.scorerUid.size() >= 1 && data.scorerUid.size() <= 128 &&
+             data.publicVisible is bool &&
+             data.sequenceIndex is int && data.sequenceIndex >= 0 && data.sequenceIndex <= 1000 &&
+             data.innings is int && data.innings >= 1 && data.innings <= 2 &&
+             data.overNumber is int && data.overNumber >= 0 && data.overNumber <= 50 &&
+             data.ballInOver is int && data.ballInOver >= 1 && data.ballInOver <= 6 &&
+             data.strikerName is string && data.strikerName.size() >= 1 && data.strikerName.size() <= 60 &&
+             data.nonStrikerName is string && data.nonStrikerName.size() >= 1 && data.nonStrikerName.size() <= 60 &&
+             data.bowlerName is string && data.bowlerName.size() >= 1 && data.bowlerName.size() <= 60 &&
+             data.runsScored is int && data.runsScored >= 0 && data.runsScored <= 7 &&
+             data.extraType in ['NONE', 'WIDE', 'NO_BALL', 'BYE', 'LEG_BYE'] &&
+             data.extraRuns is int && data.extraRuns >= 0 && data.extraRuns <= 7 &&
+             data.wicket is bool &&
+             data.dismissalType is string && data.dismissalType.size() <= 30 &&
+             (!('dismissedPlayerName' in data) || (data.dismissedPlayerName is string && data.dismissedPlayerName.size() <= 60)) &&
+             (!('fielderName' in data) || (data.fielderName is string && data.fielderName.size() <= 60)) &&
+             data.shotAngleDeg is int && data.shotAngleDeg >= 0 && data.shotAngleDeg <= 360 &&
+             data.shotDistanceNorm is number && data.shotDistanceNorm >= 0.0 && data.shotDistanceNorm <= 1.0 &&
+             data.powerplay is bool &&
+             data.commentary is string && data.commentary.size() <= 240 &&
+             isValidServerTimestamp(data.createdAt);
+    }
+
+    function isValidPost(data) {
+      return data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+             data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 60 &&
+             (!('authorPhoto' in data) || (data.authorPhoto is string && data.authorPhoto.size() <= 65000)) &&
+             data.content is string && data.content.size() >= 1 && data.content.size() <= 1000 &&
+             data.postType in ['UPDATE', 'MATCH_RESULT', 'NEWS', 'HIGHLIGHT'] &&
+             (!('matchId' in data) || (data.matchId is string && data.matchId.size() <= 128)) &&
+             (!('matchHeadline' in data) || (data.matchHeadline is string && data.matchHeadline.size() <= 160)) &&
+             data.likesCount is int && data.likesCount >= 0 &&
+             data.commentsCount is int && data.commentsCount >= 0 &&
+             data.hidden is bool &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidComment(data) {
+      return data.postId is string && data.postId.size() >= 1 && data.postId.size() <= 128 &&
+             data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+             data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 60 &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 400 &&
+             isValidServerTimestamp(data.createdAt);
+    }
+
+    function isValidGround(data) {
+      return data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+             data.city is string && data.city.size() >= 2 && data.city.size() <= 60 &&
+             data.pitchType in ['TURF', 'MATTING', 'CEMENT', 'ASTRO'] &&
+             data.floodlights is bool &&
+             data.publicVisible is bool &&
+             data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+             isValidServerTimestamp(data.createdAt);
+    }
+
+    function isValidFollow(data) {
+      return data.followerUid is string && data.followerUid.size() >= 1 && data.followerUid.size() <= 128 &&
+             data.targetId is string && data.targetId.size() >= 1 && data.targetId.size() <= 128 &&
+             data.targetType in ['PLAYER', 'TEAM'] &&
+             data.targetName is string && data.targetName.size() >= 1 && data.targetName.size() <= 80 &&
+             isValidServerTimestamp(data.createdAt);
+    }
+
+    function isValidReport(data) {
+      return data.reporterUid is string && data.reporterUid.size() >= 1 && data.reporterUid.size() <= 128 &&
+             data.reporterName is string && data.reporterName.size() >= 1 && data.reporterName.size() <= 60 &&
+             data.targetType in ['POST', 'MATCH', 'PLAYER'] &&
+             data.targetId is string && data.targetId.size() >= 1 && data.targetId.size() <= 128 &&
+             data.reason is string && data.reason.size() >= 3 && data.reason.size() <= 300 &&
+             data.status in ['OPEN', 'RESOLVED', 'DISMISSED'] &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    function isValidNotification(data) {
+      return data.recipientUid is string && data.recipientUid.size() >= 1 && data.recipientUid.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.body is string && data.body.size() >= 1 && data.body.size() <= 300 &&
+             data.type in ['MATCH', 'TOURNAMENT', 'COMMUNITY', 'SYSTEM'] &&
+             (!('referenceId' in data) || (data.referenceId is string && data.referenceId.size() <= 128)) &&
+             data.read is bool &&
+             isValidServerTimestamp(data.createdAt);
+    }
+
+    function isValidAppConfig(data) {
+      return data.maintenanceMode is bool &&
+             data.announcementBanner is string && data.announcementBanner.size() <= 200 &&
+             data.defaultOvers is int && data.defaultOvers >= 1 && data.defaultOvers <= 50 &&
+             data.allowCommunityPosts is bool &&
+             data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    // 1. Admins registry
+    match /admins/{uid} {
+      allow get: if isSignedIn() && isValidId(uid) && (request.auth.uid == uid || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create, update, delete: if isAdmin() && isValidId(uid);
+    }
+
+    // 2. Public Player Profiles (no PII)
+    match /players/{uid} {
+      allow get: if isSignedIn() && isValidId(uid) && (
+        request.auth.uid == uid || existing().privateStats == false || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        existing().privateStats == false || existing().userId == request.auth.uid || isBootstrappedAdmin()
+      );
+      allow create: if isOwner(uid) && isValidId(uid) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().role == 'user' &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'handle', 'battingStyle', 'bowlingStyle', 'playingRole', 'privateStats', 'role', 'createdAt', 'updatedAt']) &&
+                       isValidPlayerProfile(incoming());
+      allow update: if isSignedIn() && isValidId(uid) && isValidPlayerProfile(incoming()) && (
+        (isAdmin() && incoming().userId == existing().userId && incoming().createdAt == existing().createdAt) ||
+        (
+          isOwner(uid) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().role == existing().role &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'displayName', 'handle', 'photoData', 'battingStyle', 'bowlingStyle',
+            'playingRole', 'city', 'bio', 'privateStats', 'matchesPlayed',
+            'runsScored', 'ballsFaced', 'highestScore', 'fifties', 'hundreds',
+            'fours', 'sixes', 'wicketsTaken', 'runsConceded', 'ballsBowled',
+            'bestBowlingWickets', 'bestBowlingRuns', 'catches', 'stumpings',
+            'runOuts', 'mvpPoints', 'badges', 'updatedAt'
+          ])
+        )
+      );
+      allow delete: if isAdmin() && isValidId(uid);
+    }
+
+    // 3. Private User PII (strict owner isolation)
+    match /users/{uid}/private/{docId} {
+      allow get: if isSignedIn() && isValidId(uid) && isValidId(docId) && (isOwner(uid) || isAdmin());
+      allow list: if isSignedIn() && isOwner(uid);
+      allow create: if isOwner(uid) && isValidId(uid) && isValidId(docId) &&
+                       incoming().userId == request.auth.uid &&
+                       isValidPrivateAccount(incoming());
+      allow update: if isOwner(uid) && isValidId(uid) && isValidId(docId) &&
+                       isValidPrivateAccount(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['email', 'phone', 'notificationsEnabled', 'updatedAt']);
+      allow delete: if isOwner(uid) && isValidId(uid) && isValidId(docId);
+    }
+
+    // 4. Teams
+    match /teams/{teamId} {
+      allow get: if isSignedIn() && isValidId(teamId) && (existing().publicVisible == true || existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().publicVisible == true || existing().ownerUid == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn() && isValidId(teamId) &&
+                       incoming().ownerUid == request.auth.uid &&
+                       isValidTeam(incoming());
+      allow update: if isSignedIn() && isValidId(teamId) && isValidTeam(incoming()) && (
+        (isAdmin() && incoming().createdAt == existing().createdAt) ||
+        (
+          existing().ownerUid == request.auth.uid &&
+          incoming().ownerUid == existing().ownerUid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'shortName', 'city', 'logoData', 'captainName', 'playerNames', 'wins', 'losses', 'ties', 'publicVisible', 'updatedAt'])
+        )
+      );
+      allow delete: if isSignedIn() && isValidId(teamId) && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // 5. Tournaments & Standings
+    match /tournaments/{tournamentId} {
+      allow get: if isSignedIn() && isValidId(tournamentId) && (existing().publicVisible == true || existing().organizerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().publicVisible == true || existing().organizerUid == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn() && isValidId(tournamentId) &&
+                       incoming().organizerUid == request.auth.uid &&
+                       isValidTournament(incoming());
+      allow update: if isSignedIn() && isValidId(tournamentId) && isValidTournament(incoming()) && (
+        (isAdmin() && incoming().createdAt == existing().createdAt) ||
+        (
+          existing().organizerUid == request.auth.uid &&
+          existing().status != 'COMPLETED' &&
+          incoming().organizerUid == existing().organizerUid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'format', 'oversPerMatch', 'powerplayOvers', 'teamIds', 'teamNames', 'rulesText', 'bannerTheme', 'status', 'winnerTeamName', 'publicVisible', 'updatedAt'])
+        )
+      );
+      allow delete: if isSignedIn() && isValidId(tournamentId) && (existing().organizerUid == request.auth.uid || isAdmin());
+
+      match /standings/{teamId} {
+        allow get: if isSignedIn() && isValidId(tournamentId) && isValidId(teamId) && (existing().publicVisible == true || existing().organizerUid == request.auth.uid || isAdmin());
+        allow list: if isSignedIn() && (existing().publicVisible == true || existing().organizerUid == request.auth.uid || isBootstrappedAdmin());
+        allow create: if isSignedIn() && isValidId(tournamentId) && isValidId(teamId) &&
+                         incoming().tournamentId == tournamentId &&
+                         incoming().organizerUid == request.auth.uid &&
+                         isValidTournamentStanding(incoming());
+        allow update: if isSignedIn() && isValidId(tournamentId) && isValidId(teamId) &&
+                         isValidTournamentStanding(incoming()) &&
+                         incoming().tournamentId == existing().tournamentId &&
+                         incoming().teamId == existing().teamId &&
+                         incoming().organizerUid == existing().organizerUid &&
+                         (existing().organizerUid == request.auth.uid || isAdmin());
+        allow delete: if isSignedIn() && isValidId(tournamentId) && isValidId(teamId) && (existing().organizerUid == request.auth.uid || isAdmin());
+      }
+    }
+
+    // 6. Matches & Ball-by-Ball Ledger
+    match /matches/{matchId} {
+      allow get: if isSignedIn() && isValidId(matchId) && (existing().publicVisible == true || existing().scorerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().publicVisible == true || existing().scorerUid == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn() && isValidId(matchId) &&
+                       incoming().scorerUid == request.auth.uid &&
+                       isValidMatch(incoming());
+      allow update: if isSignedIn() && isValidId(matchId) && isValidMatch(incoming()) && (
+        (isAdmin() && incoming().createdAt == existing().createdAt) ||
+        (
+          existing().scorerUid == request.auth.uid &&
+          incoming().scorerUid == existing().scorerUid &&
+          incoming().createdAt == existing().createdAt &&
+          (
+            (existing().status != 'COMPLETED' &&
+             incoming().diff(existing()).affectedKeys().hasOnly([
+               'status', 'currentInnings', 'teamARuns', 'teamAWickets', 'teamABalls',
+               'teamBRuns', 'teamBWickets', 'teamBBalls', 'targetRuns', 'resultText',
+               'mvpPlayerName', 'streamUrl', 'rtmpServer', 'rtmpKey', 'aiSummary',
+               'tossWinner', 'tossDecision', 'battingFirstTeam', 'publicVisible', 'updatedAt'
+             ])) ||
+            (existing().status == 'COMPLETED' &&
+             incoming().status == 'COMPLETED' &&
+             incoming().diff(existing()).affectedKeys().hasOnly([
+               'streamUrl', 'rtmpServer', 'rtmpKey', 'aiSummary', 'updatedAt'
+             ]))
+          )
+        )
+      );
+      allow delete: if isSignedIn() && isValidId(matchId) && (existing().scorerUid == request.auth.uid || isAdmin());
+
+      match /balls/{ballId} {
+        allow get: if isSignedIn() && isValidId(matchId) && isValidId(ballId) && (existing().publicVisible == true || existing().scorerUid == request.auth.uid || isAdmin());
+        allow list: if isSignedIn() && (existing().publicVisible == true || existing().scorerUid == request.auth.uid || isBootstrappedAdmin());
+        allow create: if isSignedIn() && isValidId(matchId) && isValidId(ballId) &&
+                         incoming().matchId == matchId &&
+                         incoming().scorerUid == request.auth.uid &&
+                         isValidBallEvent(incoming()) &&
+                         exists(/databases/$(database)/documents/matches/$(matchId));
+        allow update: if isSignedIn() && isValidId(matchId) && isValidId(ballId) &&
+                         isValidBallEvent(incoming()) &&
+                         incoming().matchId == existing().matchId &&
+                         incoming().scorerUid == existing().scorerUid &&
+                         incoming().createdAt == existing().createdAt &&
+                         (existing().scorerUid == request.auth.uid || isAdmin());
+        allow delete: if isSignedIn() && isValidId(matchId) && isValidId(ballId) && (existing().scorerUid == request.auth.uid || isAdmin());
+      }
+    }
+
+    // 7. Community Posts, Likes, Comments
+    match /posts/{postId} {
+      allow get: if isSignedIn() && isValidId(postId) && (existing().hidden == false || existing().authorUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().hidden == false || existing().authorUid == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn() && isValidId(postId) &&
+                       incoming().authorUid == request.auth.uid &&
+                       incoming().hidden == false &&
+                       isValidPost(incoming());
+      allow update: if isSignedIn() && isValidId(postId) && isValidPost(incoming()) && (
+        (isAdmin() && incoming().createdAt == existing().createdAt) ||
+        (
+          existing().authorUid == request.auth.uid &&
+          incoming().authorUid == existing().authorUid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['content', 'matchHeadline', 'hidden', 'updatedAt'])
+        ) ||
+        (
+          incoming().authorUid == existing().authorUid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['likesCount', 'commentsCount', 'updatedAt'])
+        )
+      );
+      allow delete: if isSignedIn() && isValidId(postId) && (existing().authorUid == request.auth.uid || isAdmin());
+
+      match /likes/{uid} {
+        allow get: if isSignedIn() && isValidId(postId) && isValidId(uid);
+        allow list: if isSignedIn() && existing().userId is string;
+        allow create: if isOwner(uid) && isValidId(postId) && isValidId(uid) &&
+                         incoming().userId == request.auth.uid &&
+                         isValidServerTimestamp(incoming().createdAt);
+        allow delete: if isOwner(uid) && isValidId(postId) && isValidId(uid);
+      }
+
+      match /comments/{commentId} {
+        allow get: if isSignedIn() && isValidId(postId) && isValidId(commentId);
+        allow list: if isSignedIn() && existing().postId == postId;
+        allow create: if isSignedIn() && isValidId(postId) && isValidId(commentId) &&
+                         incoming().postId == postId &&
+                         incoming().authorUid == request.auth.uid &&
+                         isValidComment(incoming());
+        allow delete: if isSignedIn() && isValidId(postId) && isValidId(commentId) && (existing().authorUid == request.auth.uid || isAdmin());
+      }
+    }
+
+    // 8. Grounds Discovery
+    match /grounds/{groundId} {
+      allow get: if isSignedIn() && isValidId(groundId) && (existing().publicVisible == true || existing().createdBy == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().publicVisible == true || existing().createdBy == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn() && isValidId(groundId) &&
+                       incoming().createdBy == request.auth.uid &&
+                       isValidGround(incoming());
+      allow update, delete: if isSignedIn() && isValidId(groundId) && (existing().createdBy == request.auth.uid || isAdmin());
+    }
+
+    // 9. Follows
+    match /follows/{followId} {
+      allow get: if isSignedIn() && isValidId(followId) && (existing().followerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().followerUid == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn() && isValidId(followId) &&
+                       incoming().followerUid == request.auth.uid &&
+                       isValidFollow(incoming());
+      allow delete: if isSignedIn() && isValidId(followId) && (existing().followerUid == request.auth.uid || isAdmin());
+    }
+
+    // 10. Reports (Admin Moderation)
+    match /reports/{reportId} {
+      allow get: if isSignedIn() && isValidId(reportId) && (existing().reporterUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().reporterUid == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn() && isValidId(reportId) &&
+                       incoming().reporterUid == request.auth.uid &&
+                       incoming().status == 'OPEN' &&
+                       isValidReport(incoming());
+      allow update: if isAdmin() && isValidId(reportId) &&
+                       isValidReport(incoming()) &&
+                       incoming().reporterUid == existing().reporterUid &&
+                       incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin() && isValidId(reportId);
+    }
+
+    // 11. Notifications
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && isValidId(notificationId) && (
+        existing().recipientUid == request.auth.uid || existing().recipientUid == 'ALL' || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        existing().recipientUid == request.auth.uid || existing().recipientUid == 'ALL' || isBootstrappedAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(notificationId) &&
+                       isValidNotification(incoming()) &&
+                       (incoming().recipientUid == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && isValidId(notificationId) &&
+                       isValidNotification(incoming()) && (
+        isAdmin() ||
+        (
+          existing().recipientUid == request.auth.uid &&
+          incoming().recipientUid == existing().recipientUid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['read'])
+        )
+      );
+      allow delete: if isSignedIn() && isValidId(notificationId) && (existing().recipientUid == request.auth.uid || isAdmin());
+    }
+
+    // 12. Global App Config (Admin Managed)
+    match /app_config/{configId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() && isValidId(configId) && isValidAppConfig(incoming());
+      allow delete: if isAdmin() && isValidId(configId);
+    }
+  }
+}
